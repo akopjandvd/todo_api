@@ -41,7 +41,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run database migration
+      - name: Manual initialization of the database  
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
+        run: |
+          python -c "from database import Base, engine; Base.metadata.create_all(engine)"
+
+      - name: Database migration with Alembic
         env:
           DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
         run: |
