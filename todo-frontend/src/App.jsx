@@ -1,6 +1,8 @@
 // React frontend with full login, registration, task management, and filtering
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import { API_BASE } from './config';
+
 
 export default function TodoApp() {
 	const [username, setUsername] = useState('');
@@ -88,7 +90,7 @@ export default function TodoApp() {
 			);
 			return;
 		}
-		const res = await fetch('http://localhost:8000/auth/register', {
+		const res = await fetch(`${API_BASE}/auth/register`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ username, password }),
@@ -107,7 +109,7 @@ export default function TodoApp() {
 			setErrorMessage('Username and password cannot be empty.');
 			return;
 		}
-		const res = await fetch('http://localhost:8000/auth/token', {
+		const res = await fetch(`${API_BASE}/auth/token`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ username, password }),
@@ -123,7 +125,7 @@ export default function TodoApp() {
 
 	const fetchTasks = async () => {
 		setIsLoading(true);
-		const res = await fetch('http://localhost:8000/tasks/', {
+		const res = await fetch(`${API_BASE}/tasks/`, {
 			headers: { Authorization: `Bearer ${token}` },
 		});
 		if (res.ok) {
@@ -136,7 +138,7 @@ export default function TodoApp() {
 	const createTask = async () => {
 		if (!validateTaskForm()) return;
 		setIsLoading(true);
-		await fetch('http://localhost:8000/tasks/', {
+		await fetch(`${API_BASE}/tasks/`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -152,7 +154,7 @@ export default function TodoApp() {
 	};
 
 	const deleteTask = async (id) => {
-		await fetch(`http://localhost:8000/tasks/${id}`, {
+		await fetch(`${API_BASE}/tasks/${id}`, {
 			method: 'DELETE',
 			headers: { Authorization: `Bearer ${token}` },
 		});
@@ -162,7 +164,7 @@ export default function TodoApp() {
 	const toggleTaskCompletion = async (id, completed) => {
 		const task = tasks.find((t) => t.id === id);
 		if (!task) return;
-		await fetch(`http://localhost:8000/tasks/${id}`, {
+		await fetch(`${API_BASE}/tasks/${id}`, {
 			method: 'PUT',
 			headers: {
 				'Content-Type': 'application/json',
@@ -190,7 +192,7 @@ export default function TodoApp() {
 	};
 
 	const saveEdit = async (id) => {
-		await fetch(`http://localhost:8000/tasks/${id}`, {
+		await fetch(`${API_BASE}/tasks/${id}`, {
 			method: 'PUT',
 			headers: {
 				'Content-Type': 'application/json',
