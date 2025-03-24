@@ -34,20 +34,20 @@ This project is a full-featured TODO app where users can register, log in, and m
 
 ### 🔧 1. Clone the repository
 
-git clone https://github.com/yourusername/todo_api.git
-cd todo_api
+- git clone https://github.com/yourusername/todo_api.git
+- cd todo_api
 
 ### 🔧 2. Backend setup (FastAPI)
-cd todo-backend
-python -m venv venv
-venv\Scripts\activate       # or source venv/bin/activate on Linux/macOS
-pip install -r requirements.txt
-uvicorn main:app --reload
+- cd todo-backend
+- python -m venv venv
+- venv\Scripts\activate       # or source venv/bin/activate on Linux/macOS
+- pip install -r requirements.txt
+- uvicorn main:app --reload
 
 ### 🔧 3. Frontend setup (React + Vite + Tailwind)
-cd todo-frontend
-npm install
-npm run dev
+- cd todo-frontend
+- npm install
+- npm run dev
 
 Then visit: http://localhost:5173
 
