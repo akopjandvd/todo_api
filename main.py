@@ -8,7 +8,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # vagy ["*"] fejlesztéshez
+    allow_origins=["https://todo-api-kpjn.vercel.app"],  # vagy ["http://localhost:5173"] fejlesztéshez
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
