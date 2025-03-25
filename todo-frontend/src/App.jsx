@@ -1,8 +1,8 @@
-// React frontend with full login, registration, task management, and filtering
+// React frontend with full login, registration, task management, filtering, and toast notifications
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { API_BASE } from './config';
-
+import { Toaster, toast } from 'react-hot-toast';
 
 export default function TodoApp() {
 	const [username, setUsername] = useState('');
@@ -21,6 +21,14 @@ export default function TodoApp() {
 	const [editDescription, setEditDescription] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
 	const [formErrors, setFormErrors] = useState({ title: '', description: '' });
+	const [darkMode, setDarkMode] = useState(() => {
+		return localStorage.getItem('darkMode') === 'true';
+	});
+
+	useEffect(() => {
+		darkMode ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark');
+		localStorage.setItem('darkMode', darkMode);
+	}, [darkMode]);
 
 	useEffect(() => {
 		const storedToken = localStorage.getItem('token');
@@ -47,15 +55,12 @@ export default function TodoApp() {
 
 	const validateTaskForm = () => {
 		const errors = { title: '', description: '' };
-		if (!title.trim()) {
-			errors.title = 'Task title is required.';
-			alert(errors.title);
-		}
-		if (description.length > 300) {
-			errors.description = 'Description must be under 300 characters.';
-			alert(errors.description);
-		}
+		if (!title.trim()) errors.title = 'Task title is required.';
+		if (description.length > 300) errors.description = 'Description must be under 300 characters.';
 		setFormErrors(errors);
+		if (errors.title || errors.description) {
+			toast.error(Object.values(errors).filter(Boolean).join(' '));
+		}
 		return !errors.title && !errors.description;
 	};
 
@@ -67,15 +72,18 @@ export default function TodoApp() {
 		setToken('');
 		localStorage.removeItem('token');
 		setTasks([]);
+		setLoggedInUser('');
+		toast.success('Logged out');
 	};
 
 	const validatePassword = (password) => {
-		const minLength = 8;
-		const hasUpperCase = /[A-Z]/.test(password);
-		const hasLowerCase = /[a-z]/.test(password);
-		const hasNumber = /[0-9]/.test(password);
-		const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
-		return password.length >= minLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
+		return (
+			password.length >= 8 &&
+			/[A-Z]/.test(password) &&
+			/[a-z]/.test(password) &&
+			/[0-9]/.test(password) &&
+			/[^A-Za-z0-9]/.test(password)
+		);
 	};
 
 	const register = async () => {
@@ -95,12 +103,9 @@ export default function TodoApp() {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ username, password }),
 		});
-		if (res.ok) {
-			alert('Registration successful. You can now log in.');
-			setIsRegistering(false);
-		} else {
-			alert('Registration failed.');
-		}
+		res.ok
+			? (toast.success('Registration successful'), setIsRegistering(false))
+			: toast.error('Registration failed');
 	};
 
 	const login = async () => {
@@ -118,8 +123,9 @@ export default function TodoApp() {
 			const data = await res.json();
 			setToken(data.access_token);
 			localStorage.setItem('token', data.access_token);
+			toast.success('Login successful');
 		} else {
-			alert('Login failed.');
+			toast.error('Login failed');
 		}
 	};
 
@@ -129,8 +135,7 @@ export default function TodoApp() {
 			headers: { Authorization: `Bearer ${token}` },
 		});
 		if (res.ok) {
-			const data = await res.json();
-			setTasks(data);
+			setTasks(await res.json());
 		}
 		setIsLoading(false);
 	};
@@ -151,6 +156,7 @@ export default function TodoApp() {
 		setFormErrors({ title: '', description: '' });
 		await fetchTasks();
 		setIsLoading(false);
+		toast.success('Task created');
 	};
 
 	const deleteTask = async (id) => {
@@ -159,6 +165,7 @@ export default function TodoApp() {
 			headers: { Authorization: `Bearer ${token}` },
 		});
 		fetchTasks();
+		toast.success('Task deleted');
 	};
 
 	const toggleTaskCompletion = async (id, completed) => {
@@ -206,169 +213,209 @@ export default function TodoApp() {
 		});
 		cancelEdit();
 		fetchTasks();
+		toast.success('Task updated');
 	};
 
-	const filteredTasks = tasks.filter((task) => {
-		if (filter === 'completed') return task.completed;
-		if (filter === 'active') return !task.completed;
-		return true;
-	});
+	const filteredTasks = tasks.filter((task) =>
+		filter === 'completed' ? task.completed : filter === 'active' ? !task.completed : true
+	);
 
 	return (
-		<div className="max-w-xl mx-auto p-4">
-			{loggedInUser && (
-				<p className="text-sm text-gray-600 mb-2">
-					👋 Hello, <span className="font-semibold">{loggedInUser}</span>
-				</p>
-			)}
-
-			<h1 className="text-2xl font-bold mb-4">📝 TODO App</h1>
-
-			{!token ? (
-				<div className="space-y-2 mb-4">
-					<input
-						placeholder="Username"
-						className="border p-2 w-full"
-						value={username}
-						onChange={(e) => setUsername(e.target.value)}
-					/>
-					<div className="relative">
-						<input
-							placeholder="Password"
-							type={showPassword ? 'text' : 'password'}
-							className="border p-2 w-full"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-						/>
+		<div className={`${darkMode ? 'dark' : ''}`}>
+			<Toaster position="top-right" />
+			<div className="w-screen min-h-screen bg-white dark:bg-gray-900 text-black dark:text-white transition-colors flex justify-center items-start">
+				<div className="w-full max-w-2xl px-4 py-8">
+					<div className="flex justify-between items-center mb-4">
 						<button
-							type="button"
-							className="absolute inset-y-0 right-0 px-3 py-2 text-sm text-gray-600"
-							onClick={() => setShowPassword(!showPassword)}
+							onClick={() => setDarkMode(!darkMode)}
+							className="text-sm underline text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
 						>
-							{showPassword ? 'Hide' : 'Show'}
+							{darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
 						</button>
 					</div>
-					{errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
-					{!isRegistering ? (
-						<div className="flex gap-2">
-							<button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={login}>
-								Login
-							</button>
-							<button
-								className="bg-gray-500 text-white px-4 py-2 rounded"
-								onClick={() => setIsRegistering(true)}
-							>
-								Register
-							</button>
-						</div>
-					) : (
-						<>
-							<button className="bg-green-600 text-white px-4 py-2 rounded w-full" onClick={register}>
-								Confirm Registration
-							</button>
-							<button
-								className="text-blue-500 underline text-sm mt-2"
-								onClick={() => setIsRegistering(false)}
-							>
-								Back to login
-							</button>
-						</>
+					{loggedInUser && (
+						<p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+							👋 Hello, <span className="font-semibold">{loggedInUser}</span>
+						</p>
 					)}
-				</div>
-			) : (
-				<div className="space-y-4">
-					<button onClick={logout} className="text-red-500 underline mb-4">
-						Logout
-					</button>
 
-					<div className="flex flex-col sm:flex-row gap-2 mb-2">
-						<button className="px-2 py-1 border rounded" onClick={() => setFilter('all')}>
-							All
-						</button>
-						<button className="px-2 py-1 border rounded" onClick={() => setFilter('active')}>
-							Active
-						</button>
-						<button className="px-2 py-1 border rounded" onClick={() => setFilter('completed')}>
-							Completed
-						</button>
-					</div>
+					<h1 className="text-2xl font-bold mb-4">📝 TODO App</h1>
 
-					<div className="flex flex-col sm:flex-row gap-2 mb-4">
-						<input
-							placeholder="Task title"
-							className="border p-2 flex-1 w-full"
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-						/>
-						<input
-							placeholder="Description"
-							className="border p-2 flex-1 w-full"
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-						/>
-						<button className="bg-green-500 text-white px-4 py-2 rounded w-full sm:w-auto" onClick={createTask}>
-							Add
-						</button>
-					</div>
-
-					<div className="space-y-2">
-						{isLoading ? (
-							<p className="text-sm text-gray-500">Loading...</p>
-						) : (
-							filteredTasks.map((task) => (
-								<div key={task.id} className="border p-4 rounded flex flex-col sm:flex-row justify-between items-start">
-									<div className="flex gap-2 items-start">
-										<input
-											type="checkbox"
-											checked={task.completed}
-											onChange={() => toggleTaskCompletion(task.id, task.completed)}
-										/>
-										{editingId === task.id ? (
-											<div className="flex flex-col gap-2">
-												<input
-													className="border p-1"
-													value={editTitle}
-													onChange={(e) => setEditTitle(e.target.value)}
-												/>
-												<input
-													className="border p-1"
-													value={editDescription}
-													onChange={(e) => setEditDescription(e.target.value)}
-												/>
-												<div className="flex gap-2">
-													<button
-														onClick={() => saveEdit(task.id)}
-														className="text-green-600"
-													>
-														💾 Save
-													</button>
-													<button onClick={cancelEdit} className="text-gray-500">
-														❌ Cancel
-													</button>
-												</div>
-											</div>
-										) : (
-											<div onClick={() => startEdit(task)} className="cursor-pointer">
-												<h2
-													className={`text-lg font-semibold ${
-														task.completed ? 'line-through text-gray-400' : 'text-black'
-													}`}
-												>
-													{task.title}
-												</h2>
-												<p className="text-sm text-gray-600">{task.description}</p>
-											</div>
-										)}
-									</div>
-									<button onClick={() => deleteTask(task.id)} className="text-red-500 text-sm">
-										🗑️
+					{!token ? (
+						<div className="space-y-2 mb-4">
+							<input
+								placeholder="Username"
+								className="border border-gray-300 dark:border-gray-600 p-2 w-full bg-white dark:bg-gray-800 text-black dark:text-white"
+								value={username}
+								onChange={(e) => setUsername(e.target.value)}
+							/>
+							<div className="relative">
+								<input
+									placeholder="Password"
+									type={showPassword ? 'text' : 'password'}
+									className="border border-gray-300 dark:border-gray-600 p-2 w-full bg-white dark:bg-gray-800 text-black dark:text-white"
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+								/>
+								<button
+									type="button"
+									className="absolute inset-y-0 right-0 px-3 py-2 text-sm text-gray-600 dark:text-gray-300"
+									onClick={() => setShowPassword(!showPassword)}
+								>
+									{showPassword ? 'Hide' : 'Show'}
+								</button>
+							</div>
+							{errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
+							{!isRegistering ? (
+								<div className="flex gap-2">
+									<button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={login}>
+										Login
+									</button>
+									<button
+										className="bg-gray-500 text-white px-4 py-2 rounded"
+										onClick={() => setIsRegistering(true)}
+									>
+										Register
 									</button>
 								</div>
-							))
-						)}
-					</div>
+							) : (
+								<>
+									<button
+										className="bg-green-600 text-white px-4 py-2 rounded w-full"
+										onClick={register}
+									>
+										Confirm Registration
+									</button>
+									<button
+										className="text-blue-500 underline text-sm mt-2"
+										onClick={() => setIsRegistering(false)}
+									>
+										Back to login
+									</button>
+								</>
+							)}
+						</div>
+					) : (
+						<div className="space-y-4">
+							<button onClick={logout} className=" text-sm text-red-500 underline mb-4">
+								Logout
+							</button>
+
+							<div className="flex flex-col sm:flex-row gap-2 mb-2">
+								<button
+									className="text-sm underline mb-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+									onClick={() => setFilter('all')}
+								>
+									All
+								</button>
+								<button
+									className="text-sm underline mb-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+									onClick={() => setFilter('active')}
+								>
+									Active
+								</button>
+								<button
+									className="text-sm underline mb-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+									onClick={() => setFilter('completed')}
+								>
+									Completed
+								</button>
+							</div>
+
+							<div className="flex flex-col sm:flex-row gap-2 mb-4">
+								<input
+									placeholder="Task title"
+									className="border border-gray-300 dark:border-gray-600 p-2 flex-1 w-full"
+									value={title}
+									onChange={(e) => setTitle(e.target.value)}
+								/>
+								<input
+									placeholder="Description"
+									className="border border-gray-300 dark:border-gray-600 p-2 flex-1 w-full"
+									value={description}
+									onChange={(e) => setDescription(e.target.value)}
+								/>
+								<button
+									className="bg-green-500 text-white px-4 py-2 rounded w-full sm:w-auto"
+									onClick={createTask}
+								>
+									Add
+								</button>
+							</div>
+
+							<div className="space-y-2">
+								{isLoading ? (
+									<p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+								) : (
+									filteredTasks.map((task) => (
+										<div
+											key={task.id}
+											className="border border-gray-300 dark:border-gray-600 p-4 rounded flex flex-col sm:flex-row justify-between items-start"
+										>
+											<div className="flex gap-2 items-start">
+												<input
+													type="checkbox"
+													checked={task.completed}
+													onChange={() => toggleTaskCompletion(task.id, task.completed)}
+												/>
+												{editingId === task.id ? (
+													<div className="flex flex-col gap-2">
+														<input
+															className="border border-gray-300 dark:border-gray-600 p-1"
+															value={editTitle}
+															onChange={(e) => setEditTitle(e.target.value)}
+														/>
+														<input
+															className="border border-gray-300 dark:border-gray-600 p-1"
+															value={editDescription}
+															onChange={(e) => setEditDescription(e.target.value)}
+														/>
+														<div className="flex gap-2">
+															<button
+																onClick={() => saveEdit(task.id)}
+																className="text-green-600"
+															>
+																💾 Save
+															</button>
+															<button
+																onClick={cancelEdit}
+																className="text-gray-500 dark:text-gray-400"
+															>
+																❌ Cancel
+															</button>
+														</div>
+													</div>
+												) : (
+													<div onClick={() => startEdit(task)} className="cursor-pointer">
+														<h2
+															className={`text-lg font-semibold ${
+																task.completed
+																	? 'line-through text-gray-400'
+																	: 'text-black dark:text-white '
+															}`}
+														>
+															{task.title}
+														</h2>
+														<p className="text-sm text-gray-600 dark:text-gray-300">
+															{task.description}
+														</p>
+													</div>
+												)}
+											</div>
+											<button
+												onClick={() => deleteTask(task.id)}
+												className="text-red-500 text-sm"
+											>
+												🗑️
+											</button>
+										</div>
+									))
+								)}
+							</div>
+						</div>
+					)}
 				</div>
-			)}
+			</div>
 		</div>
 	);
 }

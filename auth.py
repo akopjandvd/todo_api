@@ -1,13 +1,13 @@
 from fastapi import Depends, HTTPException, Security, APIRouter
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from database import SessionLocal
+from database import SessionLocal, get_db
 from models import User
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
 
-SECRET_KEY = "supersecretkey"  # Ezt érdemes környezeti változóban tárolni!
+SECRET_KEY = "supersecretkey" 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -15,13 +15,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security_scheme = HTTPBearer(auto_error=False)
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 # 🔹 Jelszó hashelése és ellenőrzése
 def hash_password(password: str):
