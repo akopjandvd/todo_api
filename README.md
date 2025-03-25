@@ -1,55 +1,101 @@
-# 📝 TODO App – Fullstack Demo Project
+# 📜 TODO App (Full-stack Demo)
 
-This project is a full-featured TODO app where users can register, log in, and manage their personal tasks.
-
-> 🔐 JWT-based authentication  
-> 📋 Task CRUD (Create, Read, Update, Delete)  
-> 🎯 Task filtering and completion  
-> 💅 Responsive Tailwind UI  
+This is a full-stack TODO application with user authentication, task management, filtering, and a responsive UI. It includes both a **FastAPI backend** and a **React + Tailwind frontend**.
 
 ---
 
 ## 🚀 Features
 
-- User registration & login
-- JWT-based authentication
-- Add, list, update, delete tasks
-- Filter by: **All / Active / Completed**
-- Responsive frontend using Tailwind CSS
-- Token expiry handling with auto logout
+### 🔐 Authentication
+- User registration
+- Secure login with JWT tokens
+- Password strength validation
+- Brute-force protection (rate limiting by IP)
+
+### ✅ Task Management
+- Add, edit, delete tasks
+- Mark tasks as completed
+- Task filtering (All / Active / Completed)
+
+### 🌗 Theme
+- Dark/Light mode toggle (persists while logged in)
+
+### ⚙️ Additional
+- Toast notifications for key actions
+- Form validations (e.g., empty title, max description length)
+- Fully responsive layout
 
 ---
 
-## 🧰 Tech Stack
+## 📦 Tech Stack
 
-| Frontend        | Backend   | Other         |
-|------------------|------------|----------------|
-| React (with Vite) | FastAPI    | JWT Auth       |
-| Tailwind CSS     | Python 3   | SQLite         |
-| JSX              | Uvicorn    | LocalStorage   |
+### Backend
+- Python, FastAPI
+- SQLite with SQLAlchemy ORM
+- JWT for auth
+- SlowAPI for rate limiting
+
+### Frontend
+- React with Vite
+- TailwindCSS for styling
+- Toast system for feedback
 
 ---
 
-## 📦 Installation
+## 🧪 Running Locally
 
-### 🔧 1. Clone the repository
+### 1. Backend (FastAPI)
+```bash
+cd todo_api
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate (on Windows)
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
 
-- git clone https://github.com/yourusername/todo_api.git
-- cd todo_api
+### 2. Frontend (React + Tailwind)
+```bash
+cd todo-frontend
+npm install
+npm run dev
+```
 
-### 🔧 2. Backend setup (FastAPI)
-- cd todo-backend
-- python -m venv venv
-- venv\Scripts\activate       # or source venv/bin/activate on Linux/macOS
-- pip install -r requirements.txt
-- uvicorn main:app --reload
+> Visit `http://localhost:5173` to use the app
 
-### 🔧 3. Frontend setup (React + Vite + Tailwind)
-- cd todo-frontend
-- npm install
-- npm run dev
+---
 
-Then visit: http://localhost:5173
+## 🛡️ Brute-force Protection
 
+- Max 5 login attempts per minute per **IP address**
+- If exceeded: returns HTTP 429 Too Many Requests
 
+---
+
+## 🗂️ Folder Structure
+```
+todo_api/
+│   main.py
+│   auth.py
+│   models.py
+│   database.py
+│   ...
+│
+├── routes/
+│   └── auth.py
+│   └── tasks.py
+│
+└── todo-frontend/
+    └── src/App.jsx
+    └── ...
+```
+
+---
+
+## 📸 Screenshots
+TBD
+---
+
+## 🌍 Demo Deployment
+- Backend: Render.com
+- Frontend: Vercel.com
 
