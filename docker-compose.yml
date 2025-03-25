@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  backend:
+    build: .
+    container_name: todo-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=sqlite:///./todo.db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./todo-frontend
+    container_name: todo-frontend
+    ports:
+      - "5173:80"
+    restart: always

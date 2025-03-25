@@ -297,25 +297,25 @@ export default function TodoApp() {
 						</div>
 					) : (
 						<div className="space-y-4">
-							<button onClick={logout} className=" text-sm text-red-500 underline mb-4">
+							<button onClick={logout} className="text-sm px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition">
 								Logout
 							</button>
 
 							<div className="flex flex-col sm:flex-row gap-2 mb-2">
 								<button
-									className="text-sm underline mb-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+    className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
 									onClick={() => setFilter('all')}
 								>
 									All
 								</button>
 								<button
-									className="text-sm underline mb-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+    className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
 									onClick={() => setFilter('active')}
 								>
 									Active
 								</button>
 								<button
-									className="text-sm underline mb-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+    className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
 									onClick={() => setFilter('completed')}
 								>
 									Completed
@@ -325,18 +325,18 @@ export default function TodoApp() {
 							<div className="flex flex-col sm:flex-row gap-2 mb-4">
 								<input
 									placeholder="Task title"
-									className="border border-gray-300 dark:border-gray-600 p-2 flex-1 w-full"
+									className="border p-2 flex-1 w-full bg-white text-black dark:bg-gray-800 dark:text-white dark:border-gray-600"
 									value={title}
 									onChange={(e) => setTitle(e.target.value)}
 								/>
 								<input
 									placeholder="Description"
-									className="border border-gray-300 dark:border-gray-600 p-2 flex-1 w-full"
+									className="border p-2 flex-1 w-full bg-white text-black dark:bg-gray-800 dark:text-white dark:border-gray-600"
 									value={description}
 									onChange={(e) => setDescription(e.target.value)}
 								/>
 								<button
-									className="bg-green-500 text-white px-4 py-2 rounded w-full sm:w-auto"
+									className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded w-full sm:w-auto transition"
 									onClick={createTask}
 								>
 									Add
