@@ -1,19 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from datetime import timedelta
-from auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, get_db, get_current_user
+from slowapi.util import get_remote_address
 from models import User
+from auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
+from database import get_db
+from schemas import LoginRequest, RegisterRequest
+from rate_limiter import limiter 
 
 router = APIRouter()
-
-class RegisterRequest(BaseModel):
-    username: str
-    password: str
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
 
 @router.post("/register", status_code=201)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
@@ -28,12 +23,21 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     return {"message": "User created successfully"}
 
 @router.post("/token")
-def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = authenticate_user(request.username, request.password, db)
+@limiter.limit("5/minute")
+async def login(
+    request: Request,                         # FastAPI Request objektum
+    payload: LoginRequest,                    
+    db: Session = Depends(get_db)
+):
+    # Brute-force védelem
+    limiter = request.app.state.limiter
+
+    # Bejelentkezési logika
+    user = authenticate_user(payload.username, payload.password, db)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
