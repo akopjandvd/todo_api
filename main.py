@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -40,3 +40,7 @@ app.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
 @app.get("/")
 def root():
     return {"message": "API is up and running!"}
+
+@app.head("/")
+def healthcheck_head():
+    return Response(status_code=200)
