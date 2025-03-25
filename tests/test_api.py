@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import pytest
 from fastapi.testclient import TestClient
 
@@ -8,32 +9,34 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from main import app
 
+
+@pytest.fixture(scope="session")
+def auth_token():
+    login_response = client.post("/auth/token", json={"username": "testtest", "password": "Test123+"})
+    assert login_response.status_code == 200
+    return login_response.json()["access_token"]
+
+
 client = TestClient(app)  # FastAPI teszt kliens
 
 def test_register_user():
-    response = client.post("/auth/register", json={"username": "testuser", "password": "password123"})
+    response = client.post("/auth/register", json={"username": "testtest", "password": "Test123+"})
     assert response.status_code in [200, 400]  # Ha már létezik, akkor 400
 
 def test_login():
-    response = client.post("/auth/token", json={"username": "testuser", "password": "password123"})
+    response = client.post("/auth/token", json={"username": "testtest", "password": "Test123+"})
     assert response.status_code == 200
     assert "access_token" in response.json()
 
-def test_login_wrong_password():
-    response = client.post("/auth/token", json={"username": "testuser", "password": "wrongpassword"})
-    assert response.status_code == 401
-
-def test_create_task():
-    login_response = client.post("/auth/token", json={"username": "testuser", "password": "password123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+def test_create_task(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
 
     response = client.post("/tasks/", json={
         "title": "Learn FastAPI",
         "description": "Understand APIs",
         "completed": False
     }, headers=headers)
-    
+
     assert response.status_code == 200
     assert response.json()["title"] == "Learn FastAPI"
 
@@ -43,28 +46,18 @@ def test_create_task_without_token():
         "description": "Should fail",
         "completed": False
     })
-    
-    print("\nResponse Status Code:", response.status_code)  # Kiírjuk a státuszkódot
-    print("Response Body:", response.json())  # Kiírjuk az API válaszát
-    
-    assert response.status_code == 401  # Ha itt 403 jön, az API hibásan kezel valamit
 
+    assert response.status_code == 401
 
-
-
-def test_get_tasks():
-    login_response = client.post("/auth/token", json={"username": "testuser", "password": "password123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+def test_get_tasks(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
 
     response = client.get("/tasks/", headers=headers)
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
-def test_update_task():
-    login_response = client.post("/auth/token", json={"username": "testuser", "password": "password123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+def test_update_task(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
 
     create_response = client.post("/tasks/", json={
         "title": "Initial Task",
@@ -83,10 +76,8 @@ def test_update_task():
     assert response.status_code == 200
     assert response.json()["title"] == "Updated Task"
 
-def test_update_task_not_found():
-    login_response = client.post("/auth/token", json={"username": "testuser", "password": "password123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+def test_update_task_not_found(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
 
     response = client.put("/tasks/9999", json={
         "title": "Task",
@@ -96,10 +87,8 @@ def test_update_task_not_found():
 
     assert response.status_code == 404
 
-def test_delete_task():
-    login_response = client.post("/auth/token", json={"username": "testuser", "password": "password123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+def test_delete_task(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
 
     create_response = client.post("/tasks/", json={
         "title": "Task to delete",
@@ -113,10 +102,26 @@ def test_delete_task():
     assert response.status_code == 200
     assert response.json() == {"message": "Task deleted"}
 
-def test_delete_task_not_found():
-    login_response = client.post("/auth/token", json={"username": "testuser", "password": "password123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+def test_delete_task_not_found(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
 
     response = client.delete("/tasks/9999", headers=headers)
     assert response.status_code == 404
+
+def test_login_wrong_password():
+    response = client.post("/auth/token", json={"username": "testtest", "password": "wrongpassword"})
+    assert response.status_code == 401
+
+def test_login_empty_fields():
+    response = client.post("/auth/token", json={"username": "", "password": ""})
+    assert response.status_code == 401
+
+def test_register_weak_password():
+    response = client.post("/auth/register", json={"username": "weakuser", "password": "123"})
+    assert response.status_code == 400
+
+def test_brute_force_limit():
+    for _ in range(5):
+        client.post("/auth/token", json={"username": "testtest", "password": "wrongpassword"})
+    response = client.post("/auth/token", json={"username": "testtest", "password": "wrongpassword"})
+    assert response.status_code == 429
