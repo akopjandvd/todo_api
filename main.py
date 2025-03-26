@@ -4,10 +4,11 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from fastapi.security import HTTPBearer
-from routes import auth, tasks
+from routes import auth, tasks, ai
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from routes import ai
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -15,6 +16,8 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 
 app.state.limiter = limiter
+app.include_router(ai.router, prefix="/ai")
+
 # Rate limit exception handler
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request, exc):

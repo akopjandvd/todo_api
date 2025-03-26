@@ -1,37 +1,39 @@
 // React frontend with full login, registration, task management, filtering, and toast notifications
-import { useState, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
-import { API_BASE } from './config';
-import { Toaster, toast } from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
+import { API_BASE } from "./config";
+import { Toaster, toast } from "react-hot-toast";
 
 export default function TodoApp() {
-	const [username, setUsername] = useState('');
-	const [password, setPassword] = useState('');
+	const [username, setUsername] = useState("");
+	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
-	const [token, setToken] = useState('');
-	const [loggedInUser, setLoggedInUser] = useState('');
+	const [token, setToken] = useState("");
+	const [loggedInUser, setLoggedInUser] = useState("");
 	const [tasks, setTasks] = useState([]);
-	const [title, setTitle] = useState('');
-	const [description, setDescription] = useState('');
+	const [title, setTitle] = useState("");
+	const [description, setDescription] = useState("");
 	const [isRegistering, setIsRegistering] = useState(false);
-	const [filter, setFilter] = useState('all');
-	const [errorMessage, setErrorMessage] = useState('');
+	const [filter, setFilter] = useState("all");
+	const [errorMessage, setErrorMessage] = useState("");
 	const [editingId, setEditingId] = useState(null);
-	const [editTitle, setEditTitle] = useState('');
-	const [editDescription, setEditDescription] = useState('');
+	const [editTitle, setEditTitle] = useState("");
+	const [editDescription, setEditDescription] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
-	const [formErrors, setFormErrors] = useState({ title: '', description: '' });
+	const [formErrors, setFormErrors] = useState({ title: "", description: "" });
 	const [darkMode, setDarkMode] = useState(() => {
-		return localStorage.getItem('darkMode') === 'true';
+		return localStorage.getItem("darkMode") === "true";
 	});
 
 	useEffect(() => {
-		darkMode ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark');
-		localStorage.setItem('darkMode', darkMode);
+		darkMode
+			? document.documentElement.classList.add("dark")
+			: document.documentElement.classList.remove("dark");
+		localStorage.setItem("darkMode", darkMode);
 	}, [darkMode]);
 
 	useEffect(() => {
-		const storedToken = localStorage.getItem('token');
+		const storedToken = localStorage.getItem("token");
 		if (storedToken) setToken(storedToken);
 	}, []);
 
@@ -41,7 +43,7 @@ export default function TodoApp() {
 			const decoded = jwtDecode(token);
 			const exp = decoded.exp;
 			const now = Date.now() / 1000;
-			setLoggedInUser(decoded.sub || '');
+			setLoggedInUser(decoded.sub || "");
 			if (exp < now) {
 				logout();
 			} else {
@@ -54,12 +56,13 @@ export default function TodoApp() {
 	}, [token]);
 
 	const validateTaskForm = () => {
-		const errors = { title: '', description: '' };
-		if (!title.trim()) errors.title = 'Task title is required.';
-		if (description.length > 300) errors.description = 'Description must be under 300 characters.';
+		const errors = { title: "", description: "" };
+		if (!title.trim()) errors.title = "Task title is required.";
+		if (description.length > 300)
+			errors.description = "Description must be under 300 characters.";
 		setFormErrors(errors);
 		if (errors.title || errors.description) {
-			toast.error(Object.values(errors).filter(Boolean).join(' '));
+			toast.error(Object.values(errors).filter(Boolean).join(" "));
 		}
 		return !errors.title && !errors.description;
 	};
@@ -69,11 +72,11 @@ export default function TodoApp() {
 	}, [token]);
 
 	const logout = () => {
-		setToken('');
-		localStorage.removeItem('token');
+		setToken("");
+		localStorage.removeItem("token");
 		setTasks([]);
-		setLoggedInUser('');
-		toast.success('Logged out');
+		setLoggedInUser("");
+		toast.success("Logged out");
 	};
 
 	const validatePassword = (password) => {
@@ -87,45 +90,45 @@ export default function TodoApp() {
 	};
 
 	const register = async () => {
-		setErrorMessage('');
+		setErrorMessage("");
 		if (!username || !password) {
-			setErrorMessage('Username and password cannot be empty.');
+			setErrorMessage("Username and password cannot be empty.");
 			return;
 		}
 		if (!validatePassword(password)) {
 			setErrorMessage(
-				'Password must be at least 8 characters long and include uppercase, lowercase, a number, and a special character.'
+				"Password must be at least 8 characters long and include uppercase, lowercase, a number, and a special character."
 			);
 			return;
 		}
 		const res = await fetch(`${API_BASE}/auth/register`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ username, password }),
 		});
 		res.ok
-			? (toast.success('Registration successful'), setIsRegistering(false))
-			: toast.error('Registration failed');
+			? (toast.success("Registration successful"), setIsRegistering(false))
+			: toast.error("Registration failed");
 	};
 
 	const login = async () => {
-		setErrorMessage('');
+		setErrorMessage("");
 		if (!username || !password) {
-			setErrorMessage('Username and password cannot be empty.');
+			setErrorMessage("Username and password cannot be empty.");
 			return;
 		}
 		const res = await fetch(`${API_BASE}/auth/token`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ username, password }),
 		});
 		if (res.ok) {
 			const data = await res.json();
 			setToken(data.access_token);
-			localStorage.setItem('token', data.access_token);
-			toast.success('Login successful');
+			localStorage.setItem("token", data.access_token);
+			toast.success("Login successful");
 		} else {
-			toast.error('Login failed');
+			toast.error("Login failed");
 		}
 	};
 
@@ -140,41 +143,67 @@ export default function TodoApp() {
 		setIsLoading(false);
 	};
 
+	const generateDescription = async () => {
+		if (!title.trim()) {
+			alert("Please enter a task title first.");
+			return;
+		}
+		try {
+			const res = await fetch(`${API_BASE}/ai/description`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({ title }),
+			});
+			if (res.ok) {
+				const data = await res.json();
+				setDescription(data.description);
+			} else {
+				alert("Failed to generate description.");
+			}
+		} catch (err) {
+			console.error(err);
+			alert("Error connecting to AI service.");
+		}
+	};
+
 	const createTask = async () => {
 		if (!validateTaskForm()) return;
 		setIsLoading(true);
 		await fetch(`${API_BASE}/tasks/`, {
-			method: 'POST',
+			method: "POST",
 			headers: {
-				'Content-Type': 'application/json',
+				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
 			},
 			body: JSON.stringify({ title, description, completed: false }),
 		});
-		setTitle('');
-		setDescription('');
-		setFormErrors({ title: '', description: '' });
+		setTitle("");
+		setDescription("");
+		setFormErrors({ title: "", description: "" });
 		await fetchTasks();
 		setIsLoading(false);
-		toast.success('Task created');
+		toast.success("Task created");
 	};
 
 	const deleteTask = async (id) => {
 		await fetch(`${API_BASE}/tasks/${id}`, {
-			method: 'DELETE',
+			method: "DELETE",
 			headers: { Authorization: `Bearer ${token}` },
 		});
 		fetchTasks();
-		toast.success('Task deleted');
+		toast.success("Task deleted");
 	};
 
 	const toggleTaskCompletion = async (id, completed) => {
 		const task = tasks.find((t) => t.id === id);
 		if (!task) return;
 		await fetch(`${API_BASE}/tasks/${id}`, {
-			method: 'PUT',
+			method: "PUT",
 			headers: {
-				'Content-Type': 'application/json',
+				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
 			},
 			body: JSON.stringify({
@@ -194,15 +223,15 @@ export default function TodoApp() {
 
 	const cancelEdit = () => {
 		setEditingId(null);
-		setEditTitle('');
-		setEditDescription('');
+		setEditTitle("");
+		setEditDescription("");
 	};
 
 	const saveEdit = async (id) => {
 		await fetch(`${API_BASE}/tasks/${id}`, {
-			method: 'PUT',
+			method: "PUT",
 			headers: {
-				'Content-Type': 'application/json',
+				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
 			},
 			body: JSON.stringify({
@@ -213,15 +242,19 @@ export default function TodoApp() {
 		});
 		cancelEdit();
 		fetchTasks();
-		toast.success('Task updated');
+		toast.success("Task updated");
 	};
 
 	const filteredTasks = tasks.filter((task) =>
-		filter === 'completed' ? task.completed : filter === 'active' ? !task.completed : true
+		filter === "completed"
+			? task.completed
+			: filter === "active"
+				? !task.completed
+				: true
 	);
 
 	return (
-		<div className={`${darkMode ? 'dark' : ''}`}>
+		<div className={`${darkMode ? "dark" : ""}`}>
 			<Toaster position="top-right" />
 			<div className="w-screen min-h-screen bg-white dark:bg-gray-900 text-black dark:text-white transition-colors flex justify-center items-start">
 				<div className="w-full max-w-2xl px-4 py-8">
@@ -230,7 +263,7 @@ export default function TodoApp() {
 							onClick={() => setDarkMode(!darkMode)}
 							className="text-sm underline text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
 						>
-							{darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
+							{darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
 						</button>
 					</div>
 					{loggedInUser && (
@@ -252,7 +285,7 @@ export default function TodoApp() {
 							<div className="relative">
 								<input
 									placeholder="Password"
-									type={showPassword ? 'text' : 'password'}
+									type={showPassword ? "text" : "password"}
 									className="border border-gray-300 dark:border-gray-600 p-2 w-full bg-white dark:bg-gray-800 text-black dark:text-white"
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
@@ -262,13 +295,18 @@ export default function TodoApp() {
 									className="absolute inset-y-0 right-0 px-3 py-2 text-sm text-gray-600 dark:text-gray-300"
 									onClick={() => setShowPassword(!showPassword)}
 								>
-									{showPassword ? 'Hide' : 'Show'}
+									{showPassword ? "Hide" : "Show"}
 								</button>
 							</div>
-							{errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
+							{errorMessage && (
+								<p className="text-red-500 text-sm">{errorMessage}</p>
+							)}
 							{!isRegistering ? (
 								<div className="flex gap-2">
-									<button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={login}>
+									<button
+										className="bg-blue-500 text-white px-4 py-2 rounded"
+										onClick={login}
+									>
 										Login
 									</button>
 									<button
@@ -297,26 +335,29 @@ export default function TodoApp() {
 						</div>
 					) : (
 						<div className="space-y-4">
-							<button onClick={logout} className="text-sm px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition">
+							<button
+								onClick={logout}
+								className="text-sm px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition"
+							>
 								Logout
 							</button>
 
 							<div className="flex flex-col sm:flex-row gap-2 mb-2">
 								<button
-    className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-									onClick={() => setFilter('all')}
+									className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+									onClick={() => setFilter("all")}
 								>
 									All
 								</button>
 								<button
-    className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-									onClick={() => setFilter('active')}
+									className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+									onClick={() => setFilter("active")}
 								>
 									Active
 								</button>
 								<button
-    className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-									onClick={() => setFilter('completed')}
+									className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+									onClick={() => setFilter("completed")}
 								>
 									Completed
 								</button>
@@ -336,6 +377,13 @@ export default function TodoApp() {
 									onChange={(e) => setDescription(e.target.value)}
 								/>
 								<button
+									className="bg-purple-500 text-white px-4 py-2 rounded w-full sm:w-auto"
+									onClick={generateDescription}
+								>
+									Generate Description
+								</button>
+
+								<button
 									className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded w-full sm:w-auto transition"
 									onClick={createTask}
 								>
@@ -345,7 +393,9 @@ export default function TodoApp() {
 
 							<div className="space-y-2">
 								{isLoading ? (
-									<p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+									<p className="text-sm text-gray-500 dark:text-gray-400">
+										Loading...
+									</p>
 								) : (
 									filteredTasks.map((task) => (
 										<div
@@ -356,7 +406,9 @@ export default function TodoApp() {
 												<input
 													type="checkbox"
 													checked={task.completed}
-													onChange={() => toggleTaskCompletion(task.id, task.completed)}
+													onChange={() =>
+														toggleTaskCompletion(task.id, task.completed)
+													}
 												/>
 												{editingId === task.id ? (
 													<div className="flex flex-col gap-2">
@@ -368,7 +420,9 @@ export default function TodoApp() {
 														<input
 															className="border border-gray-300 dark:border-gray-600 p-1"
 															value={editDescription}
-															onChange={(e) => setEditDescription(e.target.value)}
+															onChange={(e) =>
+																setEditDescription(e.target.value)
+															}
 														/>
 														<div className="flex gap-2">
 															<button
@@ -386,13 +440,15 @@ export default function TodoApp() {
 														</div>
 													</div>
 												) : (
-													<div onClick={() => startEdit(task)} className="cursor-pointer">
+													<div
+														onClick={() => startEdit(task)}
+														className="cursor-pointer"
+													>
 														<h2
-															className={`text-lg font-semibold ${
-																task.completed
-																	? 'line-through text-gray-400'
-																	: 'text-black dark:text-white '
-															}`}
+															className={`text-lg font-semibold ${task.completed
+																	? "line-through text-gray-400"
+																	: "text-black dark:text-white "
+																}`}
 														>
 															{task.title}
 														</h2>
