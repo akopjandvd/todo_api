@@ -1,0 +1,14 @@
+# .github/workflows/ping.yml
+name: Ping FastAPI
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # 10 percenként
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl Ping
+        run: curl -s https://todo-api-0zuy.onrender.com/docs
