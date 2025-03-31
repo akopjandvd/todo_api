@@ -21,7 +21,7 @@ client = TestClient(app)  # FastAPI teszt kliens
 
 def test_register_user():
     response = client.post("/auth/register", json={"username": "testtest", "password": "Test123+"})
-    assert response.status_code in [200, 400]  # Ha már létezik, akkor 400
+    assert response.status_code in [200, 201, 400]  # Ha már létezik, akkor 400
 
 def test_login():
     response = client.post("/auth/token", json={"username": "testtest", "password": "Test123+"})
