@@ -10,21 +10,21 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-class TodoBase(BaseModel):
+class TaskBase(BaseModel):
     title: str
     description: str
     due_date: Optional[datetime] = None
 
-class TodoCreate(TodoBase):
+class TaskCreate(TaskBase):
     pass
 
-class TodoUpdate(BaseModel):
+class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     completed: Optional[bool] = None
     due_date: Optional[datetime] = None
 
-class TodoResponse(TodoBase):
+class TaskResponse(TaskBase):
     id: int
     completed: bool
     created_at: datetime
