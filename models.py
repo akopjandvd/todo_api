@@ -2,7 +2,13 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
+from sqlalchemy import Enum as SqlEnum
+import enum
 
+class PriorityEnum(str, enum.Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
 
 class User(Base):
     __tablename__ = "users"
@@ -24,5 +30,6 @@ class Task(Base):
     due_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     owner = relationship("User", back_populates="tasks")
+    priority = Column(SqlEnum(PriorityEnum), default="medium")
 
 
