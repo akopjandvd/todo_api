@@ -5,16 +5,12 @@ from models import Task
 from auth import get_current_user
 from pydantic import BaseModel
 from typing import List
+from schemas import TaskCreate, TaskUpdate, TaskResponse
 
 router = APIRouter()
 
-class TaskCreate(BaseModel):
-    title: str
-    description: str
-    completed: bool = False
 
-class TaskResponse(TaskCreate):
-    id: int
+
 
 def get_db():
     db = SessionLocal()
@@ -26,7 +22,7 @@ def get_db():
 @router.post("/", response_model=TaskResponse)
 def create_task(task: TaskCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
     print("User:", user)  # Ha nincs token, akkor ez 403-at dob
-    new_task = Task(title=task.title, description=task.description, completed=task.completed, owner_id=user.id)
+    new_task = Task(title=task.title, description=task.description, completed=task.completed, due_date=task.due_date, owner_id=user.id)
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
@@ -37,7 +33,7 @@ def get_tasks(db: Session = Depends(get_db), user=Depends(get_current_user)):
     return db.query(Task).filter(Task.owner_id == user.id).all()
 
 @router.put("/{task_id}", response_model=TaskResponse)
-def update_task(task_id: int, updated_task: TaskCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+def update_task(task_id: int, updated_task: TaskUpdate, db: Session = Depends(get_db), user=Depends(get_current_user)):
     task = db.query(Task).filter(Task.id == task_id, Task.owner_id == user.id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -45,6 +41,8 @@ def update_task(task_id: int, updated_task: TaskCreate, db: Session = Depends(ge
     task.title = updated_task.title
     task.description = updated_task.description
     task.completed = updated_task.completed
+    task.due_date = updated_task.due_date 
+
     db.commit()
     db.refresh(task)
     return task

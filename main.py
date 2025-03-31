@@ -8,7 +8,8 @@ from routes import auth, tasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from database import init_db
-
+from database import engine, Base
+import models
 
 limiter = Limiter(key_func=get_remote_address)
 

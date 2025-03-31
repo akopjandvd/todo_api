@@ -15,11 +15,14 @@ class TaskBase(BaseModel):
     description: str
     due_date: Optional[datetime] = None
 
-class TaskCreate(TaskBase):
-    pass
+class TaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    completed: bool = False
+    due_date: Optional[datetime] = None
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
+    title: str
     description: Optional[str] = None
     completed: Optional[bool] = None
     due_date: Optional[datetime] = None
