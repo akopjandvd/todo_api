@@ -34,7 +34,9 @@ def test_create_task(auth_token):
     response = client.post("/tasks/", json={
         "title": "Learn FastAPI",
         "description": "Understand APIs",
-        "completed": False
+        "completed": False,
+        "due_date": "2025-03-31T21:49:26.484Z",
+        "priority" : "low"
     }, headers=headers)
 
     assert response.status_code == 200
@@ -62,7 +64,9 @@ def test_update_task(auth_token):
     create_response = client.post("/tasks/", json={
         "title": "Initial Task",
         "description": "Will be updated",
-        "completed": False
+        "completed": False,
+        "due_date": "2025-03-31T21:49:26.484Z",
+        "priority" : "low"
     }, headers=headers)
 
     task_id = create_response.json()["id"]
@@ -70,7 +74,9 @@ def test_update_task(auth_token):
     response = client.put(f"/tasks/{task_id}", json={
         "title": "Updated Task",
         "description": "Task has been updated",
-        "completed": True
+        "completed": True,
+        "due_date": "2025-03-31T21:49:26.484Z",
+        "priority" : "high"
     }, headers=headers)
 
     assert response.status_code == 200
@@ -82,7 +88,9 @@ def test_update_task_not_found(auth_token):
     response = client.put("/tasks/9999", json={
         "title": "Task",
         "description": "Should fail",
-        "completed": True
+        "completed": True,
+        "due_date": "2025-03-31T21:49:26.484Z",
+        "priority" : "low"
     }, headers=headers)
 
     assert response.status_code == 404
@@ -93,7 +101,9 @@ def test_delete_task(auth_token):
     create_response = client.post("/tasks/", json={
         "title": "Task to delete",
         "description": "Will be deleted",
-        "completed": False
+        "completed": False,
+        "due_date": "2025-03-31T21:49:26.484Z",
+        "priority" : "low"
     }, headers=headers)
 
     task_id = create_response.json()["id"]
@@ -107,6 +117,49 @@ def test_delete_task_not_found(auth_token):
 
     response = client.delete("/tasks/9999", headers=headers)
     assert response.status_code == 404
+
+def test_create_task_without_title(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.post("/tasks/", json={
+        "description": "Missing title",
+        "priority": "low"
+    }, headers=headers)
+
+    assert response.status_code == 422 
+
+def test_create_task_with_long_description(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    long_desc = "x" * 301
+    response = client.post("/tasks/", json={
+        "title": "Too long",
+        "description": long_desc,
+        "priority": "low"
+    }, headers=headers)
+
+    assert response.status_code == 422 or response.status_code == 400
+
+def test_create_task_with_invalid_date(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.post("/tasks/", json={
+        "title": "Invalid date",
+        "description": "Some desc",
+        "due_date": "not-a-date",
+        "priority": "low"
+    }, headers=headers)
+
+    assert response.status_code == 422
+
+def test_create_task_with_invalid_priority(auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.post("/tasks/", json={
+        "title": "Bad priority",
+        "description": "Some desc",
+        "priority": "urgent"  # invalid
+    }, headers=headers)
+
+    assert response.status_code == 422
+
+
 
 def test_login_wrong_password():
     response = client.post("/auth/token", json={"username": "testtest", "password": "wrongpassword"})
