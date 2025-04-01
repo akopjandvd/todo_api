@@ -21,6 +21,9 @@ class TaskBase(BaseModel):
     description: str
     due_date: Optional[datetime] = None
     priority: PriorityEnum = PriorityEnum.medium
+    tags: Optional[str] = "" 
+    pinned: Optional[bool] = False
+
 
 class TaskCreate(BaseModel):
     title: str
@@ -28,6 +31,9 @@ class TaskCreate(BaseModel):
     completed: bool = False
     due_date: Optional[datetime] = None
     priority: Optional[PriorityEnum]
+    tags: Optional[str] = "" 
+    pinned: Optional[bool] = False
+
 
 class TaskUpdate(BaseModel):
     title: str
@@ -35,6 +41,9 @@ class TaskUpdate(BaseModel):
     completed: Optional[bool] = None
     due_date: Optional[datetime] = None
     priority: Optional[PriorityEnum]
+    tags: Optional[str] = "" 
+    pinned: Optional[bool] = False
+
 
 class TaskResponse(TaskBase):
     id: int

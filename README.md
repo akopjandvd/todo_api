@@ -1,44 +1,58 @@
 # 📜 TODO App (Full-stack Demo)
 
-This is a full-stack TODO application with user authentication, task management, filtering, and a responsive UI. It includes both a **FastAPI backend** and a **React + Tailwind frontend**.
+A complete full-stack TODO application with modern technologies, user authentication, task management, reminders, tagging, pinning, and a clean, responsive UI. Built with a FastAPI backend and a React + TailwindCSS frontend.
 
 ---
 
 ## 🚀 Features
 
 ### 🔐 Authentication
-- User registration
-- Secure login with JWT tokens
-- Password strength validation
+- User registration and secure login with JWT tokens
+- Password strength validation (uppercase, lowercase, number, special character)
 - Brute-force protection (rate limiting by IP)
 
 ### ✅ Task Management
-- Add, edit, delete tasks
+- Create, edit, delete tasks
 - Mark tasks as completed
-- Task filtering (All / Active / Completed)
+- **Priority levels**: low / medium / high
+- **Due date** support
+- **Tags** support (e.g., `🏷️ frontend, bugfix`)
+- **Pinning** – sticky important tasks to the top
+
+### 🔍 Search & Filtering
+- Filters: All / Active / Completed / Overdue
+- Real-time search on title and description (with debounce)
+- Sorting: By title, due date, or priority (ascending/descending)
 
 ### 🌗 Theme
-- Dark/Light mode toggle (persists while logged in)
+- Light / Dark mode toggle (stored in localStorage)
 
-### ⚙️ Additional
-- Toast notifications for key actions
-- Form validations (e.g., empty title, max description length)
-- Fully responsive layout
+### 🔔 Notifications
+- Toast notifications for successful or failed actions
+- **Fixed reminder toast** – for tasks due soon
+- Dismissible and managed toasts with priority display
+
+### 📤 Export
+- **CSV export** – Download your tasks for backup or analysis
+
+### 📱 Responsiveness
+- Mobile, tablet, and desktop optimized
+- Clean and compact UI using TailwindCSS
 
 ---
 
-## 📦 Tech Stack
+## 🧰 Tech Stack
 
 ### Backend
 - Python, FastAPI
-- SQLite with SQLAlchemy ORM
-- JWT for auth
+- SQLite + SQLAlchemy ORM
+- JWT (PyJWT)
 - SlowAPI for rate limiting
 
 ### Frontend
-- React with Vite
-- TailwindCSS for styling
-- Toast system for feedback
+- React + Vite
+- TailwindCSS
+- React Hot Toast (notifications)
 
 ---
 
@@ -48,54 +62,56 @@ This is a full-stack TODO application with user authentication, task management,
 ```bash
 cd todo_api
 python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate (on Windows)
+source venv/bin/activate  # or on Windows: venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-### 2. Frontend (React + Tailwind)
+### 2. Frontend (React + TailwindCSS)
 ```bash
 cd todo-frontend
 npm install
 npm run dev
 ```
 
-> Visit `http://localhost:5173` to use the app
+🔗 Visit: [http://localhost:5173](http://localhost:5173)
 
 ---
 
 ## 🛡️ Brute-force Protection
-
-- Max 5 login attempts per minute per **IP address**
-- If exceeded: returns HTTP 429 Too Many Requests
+- Max 5 login attempts per minute per IP address
+- Returns HTTP 429 (Too Many Requests) on limit
 
 ---
 
 ## 🗂️ Folder Structure
+
 ```
 todo_api/
-│   main.py
-│   auth.py
-│   models.py
-│   database.py
-│   ...
-│
+├── main.py
+├── models.py
+├── auth.py
+├── database.py
 ├── routes/
-│   └── auth.py
+│   ├── auth.py
 │   └── tasks.py
-│
-└── todo-frontend/
-    └── src/App.jsx
+
+todo-frontend/
+└── src/
+    ├── App.jsx
+    ├── components/
+    │   └── InputWithError.jsx
     └── ...
 ```
 
 ---
 
 ## 📸 Screenshots
-TBD
+
+_TBD_
+
 ---
 
 ## 🌍 Demo Deployment
-- Backend: Render.com
-- Frontend: Vercel.com
-
+- **Backend:** Render.com
+- **Frontend:** Vercel.com
