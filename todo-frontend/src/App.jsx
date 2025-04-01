@@ -46,6 +46,11 @@ export default function TodoApp() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const debounceTimeout = useRef(null);
+  const [sortBy, setSortBy] = useState("priority");
+  const [sortDirection, setSortDirection] = useState("asc"); // or "desc"
+
+  const [tags, setTags] = useState("");
+  const [editTags, setEditTags] = useState("");
 
   useEffect(() => {
     darkMode
@@ -100,6 +105,63 @@ export default function TodoApp() {
       fetchTasks().finally(() => setIsFirstLoad(false));
     }
   }, [token]);
+
+  const checkUpcomingTasks = (taskList) => {
+    const now = new Date();
+    const upcoming = taskList.filter((task) => {
+      if (!task.due_date || task.completed) return false;
+      const diffInDays =
+        (new Date(task.due_date) - now) / (1000 * 60 * 60 * 24);
+      return diffInDays >= -1 && diffInDays <= 2;
+    });
+
+    if (upcoming.length > 0) {
+      toast.custom(
+        (t) => (
+          <div className="fixed z-40 w-full sm:max-w-sm px-4 sm:px-0 sm:left-4 sm:top-4 sm:ml-4 top-4 left-1/2 transform -translate-x-1/2 sm:translate-x-0 animate-slide-fade-in">
+            <div className="relative bg-yellow-100 dark:bg-yellow-800 text-black dark:text-white p-4 rounded shadow-md flex justify-between items-start gap-4 transition-all">
+              <div className="flex-1">
+                <strong className="block text-sm font-semibold mb-1">
+                  ⏰ Upcoming tasks
+                </strong>
+                <p className="text-sm mb-1">
+                  You have {upcoming.length} task(s) due soon:
+                </p>
+                <ul className="text-sm list-disc list-inside">
+                  {upcoming.slice(0, 5).map((task) => (
+                    <li key={task.id} className="truncate">
+                      {task.title}
+                    </li>
+                  ))}
+                </ul>
+                {upcoming.length > 5 && (
+                  <p className="text-xs italic text-gray-600 dark:text-gray-300 mt-1">
+                    ...and {upcoming.length - 5} more
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => toast.dismiss("reminder-toast")}
+                className="absolute top-2 right-2 text-sm rounded-full bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-white hover:text-red-600 transition"
+              >
+                ✖
+              </button>
+            </div>
+          </div>
+        ),
+        {
+          id: "reminder-toast",
+          duration: Infinity,
+        }
+      );
+    } else {
+      toast.dismiss("reminder-toast");
+    }
+  };
+
+  useEffect(() => {
+    checkUpcomingTasks(tasks);
+  }, [tasks]);
 
   const logout = () => {
     setToken("");
@@ -187,12 +249,14 @@ export default function TodoApp() {
         due_date: dueDate || null,
         completed: false,
         priority,
+        tags: tags,
       }),
     });
     if (res.ok) {
       const newTask = await res.json();
+      const updated = [...tasks, newTask];
+      setTasks(updated);
       setJustAddedTaskId(newTask.id);
-      setTasks((prev) => [...prev, newTask]);
       setTimeout(() => setJustAddedTaskId(null), 500);
 
       setTitle("");
@@ -201,45 +265,52 @@ export default function TodoApp() {
       setPriority("medium");
       setWasCreateSubmitted(false);
       setCreateErrors({ title: "", description: "", due_date: "" });
+      setTags("");
       toast.success("Task created");
+      checkUpcomingTasks(updated);
     }
   };
 
   const deleteTask = async (id) => {
     setDeletingTaskId(id);
     await new Promise((r) => setTimeout(r, 300));
+
     const res = await fetch(`${API_BASE}/tasks/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
+
     if (res.ok) {
-      setTasks((prev) => prev.filter((t) => t.id !== id));
-      toast.success("Task deleted");
+      const updated = tasks.filter((t) => t.id !== id);
+      setTasks(updated);
       setDeletingTaskId(null);
+      toast.success("Task deleted");
+      checkUpcomingTasks(updated);
     }
   };
 
   const toggleTaskCompletion = async (id, completed) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
+
+    const updatedTask = {
+      ...task,
+      completed: !completed,
+    };
+
     const res = await fetch(`${API_BASE}/tasks/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        title: task.title,
-        description: task.description,
-        due_date: task.due_date || null,
-        completed: !completed,
-        priority: task.priority || "medium",
-      }),
+      body: JSON.stringify(updatedTask),
     });
+
     if (res.ok) {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, completed: !completed } : t))
-      );
+      const updatedTasks = tasks.map((t) => (t.id === id ? updatedTask : t));
+      setTasks(updatedTasks);
+      checkUpcomingTasks(updatedTasks); // ⏰ ha ez egy lejáró task volt, frissítjük
     }
   };
 
@@ -249,6 +320,7 @@ export default function TodoApp() {
     setEditDescription(task.description);
     setEditDueDate(task.due_date ? task.due_date.split("T")[0] : "");
     setEditPriority(task.priority || "medium");
+    setEditTags(task.tags || "");
   };
 
   const cancelEdit = () => {
@@ -281,38 +353,63 @@ export default function TodoApp() {
 
   const saveEdit = async (id) => {
     if (!validateEditForm()) return;
+
+    const taskToUpdate = tasks.find((t) => t.id === id);
+    if (!taskToUpdate) return;
+
+    const updatedTask = {
+      ...taskToUpdate,
+      title: editTitle,
+      description: editDescription,
+      due_date: editDueDate || null,
+      completed: taskToUpdate.completed,
+      priority: editPriority,
+      tags: editTags,
+    };
+
     const res = await fetch(`${API_BASE}/tasks/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        title: editTitle,
-        description: editDescription,
-        due_date: editDueDate || null,
-        completed: tasks.find((t) => t.id === id)?.completed || false,
-        priority: editPriority,
-      }),
+      body: JSON.stringify(updatedTask),
     });
+
     if (res.ok) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === id
-            ? {
-                ...t,
-                title: editTitle,
-                description: editDescription,
-                due_date: editDueDate || null,
-                priority: editPriority,
-              }
-            : t
-        )
-      );
+      const updatedTasks = tasks.map((t) => (t.id === id ? updatedTask : t));
+      setTasks(updatedTasks);
       setLastEditedId(id);
       setTimeout(() => setLastEditedId(null), 500);
       cancelEdit();
       toast.success("Task updated");
+      checkUpcomingTasks(updatedTasks); // 👈
+    }
+  };
+
+  const togglePinTask = async (id) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    const updatedTask = {
+      ...task,
+      pinned: !task.pinned,
+    };
+
+    const res = await fetch(`${API_BASE}/tasks/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(updatedTask),
+    });
+
+    if (res.ok) {
+      const updatedTasks = tasks.map((t) => (t.id === id ? updatedTask : t));
+      setTasks(updatedTasks);
+      checkUpcomingTasks(updatedTasks);
+      toast.success(updatedTask.pinned ? "Task pinned" : "Task unpinned");
     }
   };
 
@@ -347,19 +444,64 @@ export default function TodoApp() {
     }, 500);
   }, [searchQuery]);
 
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+
+    let result = 0;
+
+    if (sortBy === "title") {
+      result = a.title.localeCompare(b.title);
+    } else if (sortBy === "due_date") {
+      result = new Date(a.due_date || 0) - new Date(b.due_date || 0);
+    } else if (sortBy === "priority") {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      result =
+        (priorityOrder[a.priority] ?? 99) - (priorityOrder[b.priority] ?? 99);
+    }
+
+    return sortDirection === "asc" ? result : -result;
+  });
+
+  const exportTasksAsCSV = () => {
+    if (tasks.length === 0) {
+      toast.error("No tasks to export.");
+      return;
+    }
+
+    const headers = [
+      "Title",
+      "Description",
+      "Completed",
+      "Due Date",
+      "Priority",
+    ];
+    const rows = tasks.map((task) => [
+      task.title,
+      task.description?.replace(/(\r\n|\n|\r)/gm, " ") || "",
+      task.completed ? "Yes" : "No",
+      task.due_date ? new Date(task.due_date).toLocaleDateString() : "",
+      task.priority || "medium",
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((val) => `"${val}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "tasks.csv");
+    link.click();
+  };
+
   return (
     <div className={`${darkMode ? "dark" : ""}`}>
       <Toaster position="top-right" />
       <div className="w-screen min-h-screen bg-white dark:bg-gray-900 text-black dark:text-white transition-colors flex justify-center items-start">
         <div className="w-full max-w-2xl px-4 py-8">
-          <div className="flex justify-between items-center mb-4">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="text-sm underline text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-            >
-              {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
-            </button>
-          </div>
           {loggedInUser && (
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
               👋 Hello, <span className="font-semibold">{loggedInUser}</span>
@@ -429,12 +571,21 @@ export default function TodoApp() {
             </div>
           ) : (
             <div className="space-y-4">
-              <button
-                onClick={logout}
-                className="text-sm px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition"
-              >
-                Logout
-              </button>
+              <div className="flex justify-between items-center mb-4">
+                <button
+                  onClick={logout}
+                  className="text-sm px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition"
+                >
+                  Logout
+                </button>
+
+                <button
+                  onClick={() => setDarkMode(!darkMode)}
+                  className="text-sm px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition"
+                >
+                  {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+                </button>
+              </div>
 
               <div className="flex flex-col md:flex-row gap-2 mb-2">
                 <button
@@ -472,11 +623,11 @@ export default function TodoApp() {
                 />
               </div>
 
-              <div className="flex flex-col gap-2 mb-4">
+              <div className="flex flex-col  gap-2 mb-4">
                 <div className="flex flex-col md:flex-row gap-2">
                   <InputWithError
                     placeholder="Task title"
-                    className="h-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                    className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
  border px-12 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -485,7 +636,7 @@ export default function TodoApp() {
 
                   <InputWithError
                     type="date"
-                    className="h-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                    className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
  border px-12 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
@@ -515,12 +666,52 @@ export default function TodoApp() {
                   error={wasCreateSubmitted ? createErrors.description : ""}
                 />
 
+                <input
+                  placeholder="Tags (comma separated)"
+                  className="border p-2 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                />
+
                 <button
                   className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition"
                   onClick={createTask}
                 >
                   Add
                 </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <label className="text-sm">Sort by:</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="p-2 border rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                  >
+                    <option value="title">Title (A-Z)</option>
+                    <option value="due_date">Due date</option>
+                    <option value="priority">Priority</option>
+                  </select>
+
+                  <select
+                    value={sortDirection}
+                    onChange={(e) => setSortDirection(e.target.value)}
+                    className="p-2 border rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                  >
+                    <option value="asc">⬆️ Ascending</option>
+                    <option value="desc">⬇️ Descending</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={exportTasksAsCSV}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full sm:w-auto"
+                  >
+                    📥 Export tasks as CSV
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -531,16 +722,25 @@ export default function TodoApp() {
                 ) : isFirstLoad ? (
                   <p>Loading...</p>
                 ) : (
-                  filteredTasks.map((task) => (
+                  sortedTasks.map((task) => (
                     <div
                       key={task.id}
                       className={`border p-4 rounded transition-all duration-500 ease-in-out flex flex-col md:flex-row justify-between items-start
-						${getDueColor(task.due_date, task.completed)}
-						${task.completed ? "opacity-50" : "opacity-100"}
-						${deletingTaskId === task.id ? "opacity-0 scale-95" : ""}
-						${lastEditedId === task.id ? "ring-2 ring-green-400" : ""}
-						${justAddedTaskId === task.id ? "opacity-0 translate-y-3 animate-fade-in" : ""}
-						`}
+                      ${getDueColor(task.due_date, task.completed)}
+                      ${task.completed ? "opacity-50" : "opacity-100"}
+                      ${deletingTaskId === task.id ? "opacity-0 scale-95" : ""}
+                      ${lastEditedId === task.id ? "ring-2 ring-green-400" : ""}
+                      ${
+                        justAddedTaskId === task.id
+                          ? "opacity-0 translate-y-3 animate-fade-in"
+                          : ""
+                      }
+                      ${
+                        task.pinned
+                          ? "ring-2 ring-indigo-400 bg-indigo-100 dark:bg-indigo-900"
+                          : ""
+                      }
+                      `}
                     >
                       <div className="relative w-full">
                         {editingId === task.id ? (
@@ -591,6 +791,12 @@ export default function TodoApp() {
                               error={editErrors.description}
                               className="resize-y w-full border px-3 py-2 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                             />
+                            <input
+                              placeholder="Tags (comma separated)"
+                              className="border p-2 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
+                              value={editTags}
+                              onChange={(e) => setEditTags(e.target.value)}
+                            />
 
                             <div className="flex gap-2 sm:col-span-2">
                               <button
@@ -636,17 +842,40 @@ export default function TodoApp() {
                             {task.priority && (
                               <span
                                 className={`text-xs font-semibold px-2 py-1 rounded-full
-								${
-                  task.priority === "high"
-                    ? "bg-red-600 text-white"
-                    : task.priority === "medium"
-                    ? "bg-yellow-300 text-black"
-                    : "bg-green-500 text-white"
-                } shadow-sm`}
+                                ${
+                                  task.priority === "high"
+                                    ? "bg-red-600 text-white"
+                                    : task.priority === "medium"
+                                    ? "bg-yellow-300 text-black"
+                                    : "bg-green-500 text-white"
+                                } shadow-sm`}
                               >
                                 {task.priority.toUpperCase()}
                               </span>
                             )}
+                            {task.tags && (
+                              <p className="text-xs mt-1 text-blue-400">
+                                🏷️{" "}
+                                {task.tags.split(",").map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="inline-block mr-1 bg-blue-600 text-white px-2 py-1 rounded text-xs"
+                                  >
+                                    {tag.trim()}
+                                  </span>
+                                ))}
+                              </p>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); // ne indítsa el az editet
+                                togglePinTask(task.id, task.pinned);
+                              }}
+                              title={task.pinned ? "Unpin task" : "Pin task"}
+                              className="absolute top-2 right-2 bg-white dark:bg-gray-800 text-black dark:text-white rounded-full p-2 shadow hover:scale-105 transition leading-none w-10 h-10 flex items-center justify-center"
+                            >
+                              {task.pinned ? "📌" : "📍"}
+                            </button>
                           </div>
                         )}
                         <div className="absolute bottom-4 right-4 flex items-center gap-2 mt-2">

@@ -31,5 +31,7 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     owner = relationship("User", back_populates="tasks")
     priority = Column(SqlEnum(PriorityEnum), default="medium")
+    tags = Column(String, default="")
+    pinned = Column(Boolean, default=False)
 
 
