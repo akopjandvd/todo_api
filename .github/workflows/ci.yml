@@ -45,4 +45,4 @@ jobs:
         env:
           DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
         run: |
-          pytest tests/
+          pytest backend/tests/
