@@ -1,10 +1,20 @@
 // React frontend with full login, registration, task management, filtering, and toast notifications
 import { useState, useEffect, useRef } from "react";
-import { jwtDecode } from "jwt-decode";
 import { API_BASE } from "./config";
 import { Toaster, toast } from "react-hot-toast";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays, parseISO, isSameWeek, format } from "date-fns";
 import InputWithError from "./components/InputWithError";
+import StatSection from "./components/StatSection";
+import WeeklyBarChart from "./components/WeeklyBarChart";
+import PriorityPieChart from "./components/PriorityPieChart";
+import PriorityBarChart from "./components/PriorityBarChart";
+import WeeklyPieChart from "./components/WeeklyPieChart";
+import {
+  validateTaskFieldsAndSetErrors,
+  isStrongPassword,
+} from "./utils/validation";
+import useTokenHandler from "./hooks/useTokenHandler";
+import { exportTasksAsCSV } from "./utils/export";
 
 export default function TodoApp() {
   const [username, setUsername] = useState("");
@@ -48,9 +58,35 @@ export default function TodoApp() {
   const debounceTimeout = useRef(null);
   const [sortBy, setSortBy] = useState("priority");
   const [sortDirection, setSortDirection] = useState("asc"); // or "desc"
-
   const [tags, setTags] = useState("");
   const [editTags, setEditTags] = useState("");
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const [chartType, setChartType] = useState("bar");
+
+  const filters = ["all", "active", "completed", "overdue"];
+
+  const fetchTasks = async () => {
+    const res = await fetch(`${API_BASE}/tasks/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      setTasks(await res.json());
+    }
+  };
+
+  function clearSession() {
+    setToken("");
+    localStorage.removeItem("token");
+    setTasks([]);
+    setLoggedInUser("");
+    setSearchQuery("");
+  }
+
+  const logout = () => {
+    clearSession();
+    toast.success("Logged out");
+  };
 
   useEffect(() => {
     darkMode
@@ -64,47 +100,28 @@ export default function TodoApp() {
     if (storedToken) setToken(storedToken);
   }, []);
 
-  useEffect(() => {
-    if (!token) return;
-    try {
-      const decoded = jwtDecode(token);
-      const exp = decoded.exp;
-      const now = Date.now() / 1000;
-      setLoggedInUser(decoded.sub || "");
-      if (exp < now) {
-        logout();
-      } else {
-        const timeout = setTimeout(() => logout(), (exp - now) * 1000);
-        return () => clearTimeout(timeout);
-      }
-    } catch (e) {
-      logout();
+  const login = async () => {
+    setErrorMessage("");
+    if (!username || !password) {
+      setErrorMessage("Username and password cannot be empty.");
+      return;
     }
-  }, [token]);
-
-  const validateTaskForm = () => {
-    const errors = { title: "", description: "", due_date: "" };
-
-    if (!title.trim()) errors.title = "Task title is required.";
-    if (description.length > 300)
-      errors.description = "Description must be under 300 characters.";
-    if (dueDate && isNaN(Date.parse(dueDate)))
-      errors.due_date = "Invalid date format.";
-
-    setCreateErrors(errors);
-
-    if (errors.title || errors.description || errors.due_date) {
-      toast.error("Please correct the errors before submitting.");
-      return false;
+    const res = await fetch(`${API_BASE}/auth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setToken(data.access_token);
+      localStorage.setItem("token", data.access_token);
+      toast.success("Login successful");
+    } else {
+      toast.error("Login failed");
     }
-    return true;
   };
 
-  useEffect(() => {
-    if (token) {
-      fetchTasks().finally(() => setIsFirstLoad(false));
-    }
-  }, [token]);
+  useTokenHandler(token, setToken, setLoggedInUser, logout);
 
   const checkUpcomingTasks = (taskList) => {
     const now = new Date();
@@ -163,32 +180,13 @@ export default function TodoApp() {
     checkUpcomingTasks(tasks);
   }, [tasks]);
 
-  const logout = () => {
-    setToken("");
-    localStorage.removeItem("token");
-    setTasks([]);
-    setLoggedInUser("");
-    toast.success("Logged out");
-    setSearchQuery("");
-  };
-
-  const validatePassword = (password) => {
-    return (
-      password.length >= 8 &&
-      /[A-Z]/.test(password) &&
-      /[a-z]/.test(password) &&
-      /[0-9]/.test(password) &&
-      /[^A-Za-z0-9]/.test(password)
-    );
-  };
-
   const register = async () => {
     setErrorMessage("");
     if (!username || !password) {
       setErrorMessage("Username and password cannot be empty.");
       return;
     }
-    if (!validatePassword(password)) {
+    if (!isStrongPassword(password)) {
       setErrorMessage(
         "Password must be at least 8 characters long and include uppercase, lowercase, a number, and a special character."
       );
@@ -204,35 +202,23 @@ export default function TodoApp() {
       : toast.error("Registration failed");
   };
 
-  const login = async () => {
-    setErrorMessage("");
-    if (!username || !password) {
-      setErrorMessage("Username and password cannot be empty.");
-      return;
-    }
-    const res = await fetch(`${API_BASE}/auth/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setToken(data.access_token);
-      localStorage.setItem("token", data.access_token);
-      toast.success("Login successful");
-    } else {
-      toast.error("Login failed");
-    }
-  };
+  const validateTaskForm = () =>
+    validateTaskFieldsAndSetErrors(
+      { title, description, dueDate },
+      setCreateErrors,
+      "Please correct the errors before submitting."
+    );
 
-  const fetchTasks = async () => {
-    const res = await fetch(`${API_BASE}/tasks/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      setTasks(await res.json());
-    }
-  };
+  const validateEditForm = () =>
+    validateTaskFieldsAndSetErrors(
+      {
+        title: editTitle,
+        description: editDescription,
+        dueDate: editDueDate,
+      },
+      setEditErrors,
+      "Please correct the errors before saving."
+    );
 
   const createTask = async () => {
     setWasCreateSubmitted(true);
@@ -330,25 +316,6 @@ export default function TodoApp() {
     setEditDueDate("");
     setEditPriority("medium");
     setEditErrors({ title: "", description: "", due_date: "" });
-  };
-
-  const validateEditForm = () => {
-    const errors = { title: "", description: "", due_date: "" };
-
-    if (!editTitle.trim()) errors.title = "Task title is required.";
-    if (editDescription.length > 300)
-      errors.description = "Description must be under 300 characters.";
-    if (editDueDate && isNaN(Date.parse(editDueDate)))
-      errors.due_date = "Invalid date format.";
-
-    setEditErrors(errors);
-
-    if (errors.title || errors.description || errors.due_date) {
-      toast.error("Please correct the errors before saving.");
-      return false;
-    }
-
-    return true;
   };
 
   const saveEdit = async (id) => {
@@ -463,43 +430,99 @@ export default function TodoApp() {
     return sortDirection === "asc" ? result : -result;
   });
 
-  const exportTasksAsCSV = () => {
-    if (tasks.length === 0) {
-      toast.error("No tasks to export.");
+  const handleExportClick = () => {
+    const csvContent = exportTasksAsCSV(tasks);
+    if (!csvContent) {
       return;
     }
 
-    const headers = [
-      "Title",
-      "Description",
-      "Completed",
-      "Due Date",
-      "Priority",
-    ];
-    const rows = tasks.map((task) => [
-      task.title,
-      task.description?.replace(/(\r\n|\n|\r)/gm, " ") || "",
-      task.completed ? "Yes" : "No",
-      task.due_date ? new Date(task.due_date).toLocaleDateString() : "",
-      task.priority || "medium",
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((val) => `"${val}"`).join(","))
-      .join("\n");
-
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.setAttribute("href", url);
     link.setAttribute("download", "tasks.csv");
     link.click();
   };
 
+  const openStatsPanel = () => {
+    setIsAnimatingOut(false);
+    setShowStatsPanel(true);
+  };
+
+  const closeStatsPanel = () => {
+    setIsAnimatingOut(true);
+    setTimeout(() => {
+      setShowStatsPanel(false);
+      setIsAnimatingOut(false);
+    }, 300);
+  };
+
+  function getPriorityStats(tasks) {
+    const counts = { low: 0, medium: 0, high: 0 };
+
+    for (const task of tasks) {
+      if (task.priority && counts[task.priority] !== undefined) {
+        counts[task.priority]++;
+      }
+    }
+
+    return [
+      { name: "Low", value: counts.low },
+      { name: "Medium", value: counts.medium },
+      { name: "High", value: counts.high },
+    ];
+  }
+
+  const priorityData = getPriorityStats(tasks);
+
+  const getWeeklyDueStats = (tasks) => {
+    const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const counts = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+
+    tasks.forEach((task) => {
+      if (!task.due_date || task.completed) return;
+
+      const date = parseISO(task.due_date);
+      if (isSameWeek(date, new Date(), { weekStartsOn: 1 })) {
+        const day = format(date, "EEE");
+        if (counts[day] !== undefined) {
+          counts[day]++;
+        }
+      }
+    });
+
+    return weekDays.map((day) => counts[day]);
+  };
+
+  const weeklyData = getWeeklyDueStats(tasks);
+
+  useEffect(() => {
+    if (showStatsPanel) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showStatsPanel]);
+
+  useEffect(() => {
+    if (token) {
+      fetchTasks().finally(() => setIsFirstLoad(false));
+    }
+  }, [token]);
+
   return (
     <div className={`${darkMode ? "dark" : ""}`}>
-      <Toaster position="top-right" />
+      <Toaster
+        toastOptions={{
+          duration: 3000,
+          className:
+            "!top-4 sm:!top-4 sm:!right-4 sm:!left-auto !left-1/2 !-translate-x-1/2",
+        }}
+      />{" "}
       <div className="w-screen min-h-screen bg-white dark:bg-gray-900 text-black dark:text-white transition-colors flex justify-center items-start">
         <div className="w-full max-w-2xl px-4 py-8">
           {loggedInUser && (
@@ -587,32 +610,6 @@ export default function TodoApp() {
                 </button>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-2 mb-2">
-                <button
-                  className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                  onClick={() => setFilter("all")}
-                >
-                  All
-                </button>
-                <button
-                  className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                  onClick={() => setFilter("active")}
-                >
-                  Active
-                </button>
-                <button
-                  className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                  onClick={() => setFilter("completed")}
-                >
-                  Completed
-                </button>
-                <button
-                  className="px-3 py-1 rounded bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                  onClick={() => setFilter("overdue")}
-                >
-                  Overdue
-                </button>
-              </div>
               <div className="mb-4">
                 <input
                   type="text"
@@ -628,7 +625,7 @@ export default function TodoApp() {
                   <InputWithError
                     placeholder="Task title"
                     className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
- border px-12 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                    border px-12 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     error={wasCreateSubmitted ? createErrors.title : ""}
@@ -637,7 +634,7 @@ export default function TodoApp() {
                   <InputWithError
                     type="date"
                     className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
- border px-12 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                    border px-12 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
                     error={wasCreateSubmitted ? createErrors.due_date : ""}
@@ -645,7 +642,7 @@ export default function TodoApp() {
 
                   <select
                     className="h-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
- border px-10 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                    border px-10 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                     onChange={(e) => setPriority(e.target.value)}
                     value={priority}
                   >
@@ -660,7 +657,7 @@ export default function TodoApp() {
                   rows={3}
                   placeholder="Description"
                   className="focus:outline-none focus:ring-2 focus:ring-blue-400
- resize-y w-full border px-3 py-2 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                  resize-y w-full border px-3 py-2 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   error={wasCreateSubmitted ? createErrors.description : ""}
@@ -704,14 +701,35 @@ export default function TodoApp() {
                   </select>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
                   <button
-                    onClick={exportTasksAsCSV}
+                    onClick={handleExportClick}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full sm:w-auto"
                   >
                     📥 Export tasks as CSV
                   </button>
+                  <button
+                    onClick={openStatsPanel}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm"
+                  >
+                    📊 Stats
+                  </button>
                 </div>
+              </div>
+              <div className="flex flex-col md:flex-row gap-2 mb-2">
+                {filters.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-1 rounded ${
+                      filter === f
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-200 dark:bg-gray-700 text-black dark:text-white"
+                    }`}
+                  >
+                    {f[0].toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
               </div>
 
               <div className="space-y-2">
@@ -801,8 +819,8 @@ export default function TodoApp() {
                             <div className="flex gap-2 sm:col-span-2">
                               <button
                                 className="inline-flex items-center gap-1 text-sm font-medium px-3 py-1 rounded transition 
-									bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 
-									text-green-700 dark:text-green-400"
+                                bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 
+                                text-green-700 dark:text-green-400"
                                 onClick={() => saveEdit(task.id)}
                               >
                                 <span className="text-lg">💾</span>
@@ -904,6 +922,101 @@ export default function TodoApp() {
           )}
         </div>
       </div>
+      {(showStatsPanel || isAnimatingOut) && (
+        <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex sm:items-start items-center justify-center sm:justify-end">
+          <div
+            className={`bg-white dark:bg-gray-900 text-black dark:text-white 
+      w-full h-full sm:w-[400px] sm:h-auto sm:max-h-[100vh] sm:rounded-l-lg shadow-lg overflow-y-auto p-4
+      transition-all duration-300 
+      ${isAnimatingOut ? "animate-fade-out" : "animate-fade-in"}
+    `}
+          >
+            <div className="relative mb-4">
+              {/* Flex konténer a címhez és a chart-választóhoz */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pr-12">
+                <h2 className="text-xl font-semibold">📊 Statistics</h2>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Chart type:</label>
+                  <select
+                    value={chartType}
+                    onChange={(e) => setChartType(e.target.value)}
+                    className="border px-2 py-1 rounded bg-white dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="bar">Bar</option>
+                    <option value="pie">Pie</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                className="absolute top-0 right-0 w-8 h-8 text-sm flex items-center justify-center 
+               rounded-full bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-white 
+               hover:text-red-600 transition"
+                onClick={closeStatsPanel}
+              >
+                ✖
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 shadow flex flex-col items-center">
+                <span className="text-2xl font-bold">{tasks.length}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  All tasks
+                </span>
+              </div>
+              <div className="bg-blue-100 dark:bg-blue-900 rounded-lg p-4 shadow flex flex-col items-center">
+                <span className="text-2xl font-bold">
+                  {tasks.filter((t) => !t.completed).length}
+                </span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  Active
+                </span>
+              </div>
+              <div className="bg-green-100 dark:bg-green-900 rounded-lg p-4 shadow flex flex-col items-center">
+                <span className="text-2xl font-bold">
+                  {tasks.filter((t) => t.completed).length}
+                </span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  Completed
+                </span>
+              </div>
+              <div className="bg-red-100 dark:bg-red-900 rounded-lg p-4 shadow flex flex-col items-center">
+                <span className="text-2xl font-bold">
+                  {
+                    tasks.filter(
+                      (t) =>
+                        t.due_date &&
+                        !t.completed &&
+                        new Date(t.due_date) < new Date()
+                    ).length
+                  }
+                </span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  Overdue
+                </span>
+              </div>
+            </div>
+
+            <StatSection title="📅 Weekly Task Breakdown">
+              {chartType === "bar" ? (
+                <WeeklyBarChart data={weeklyData} isDarkMode={darkMode} />
+              ) : (
+                <WeeklyPieChart data={weeklyData} isDarkMode={darkMode} />
+              )}
+            </StatSection>
+
+            <StatSection title="🔥 Tasks by Priority">
+              {chartType === "bar" ? (
+                <PriorityBarChart data={priorityData} isDarkMode={darkMode} />
+              ) : (
+                <PriorityPieChart data={priorityData} isDarkMode={darkMode} />
+              )}
+            </StatSection>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

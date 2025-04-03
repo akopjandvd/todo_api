@@ -1,24 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Security
 from sqlalchemy.orm import Session
 from datetime import timedelta
-from slowapi.util import get_remote_address
 from models import User
 from auth import authenticate_user, create_access_token, hash_password, get_current_user
 from database import get_db
 from schemas import LoginRequest, RegisterRequest
+from auth import verify_token, is_strong_password
 from rate_limiter import limiter 
-import re
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-def is_strong_password(password: str) -> bool:
-    return (
-        len(password) >= 8 and
-        re.search(r"[A-Z]", password) and
-        re.search(r"[a-z]", password) and
-        re.search(r"[0-9]", password) and
-        re.search(r"[^A-Za-z0-9]", password)
-    )
+
+
 
 router = APIRouter()
+security = HTTPBearer()
+
 
 @router.post("/register", status_code=201)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
@@ -37,14 +33,12 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 @router.post("/token")
 @limiter.limit("5/minute")
 async def login(
-    request: Request,                         # FastAPI Request objektum
+    request: Request,
     payload: LoginRequest,                    
     db: Session = Depends(get_db)
 ):
-    # Brute-force védelem
     limiter = request.app.state.limiter
 
-    # Bejelentkezési logika
     user = authenticate_user(payload.username, payload.password, db)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
@@ -59,3 +53,10 @@ async def login(
 @router.get("/me")
 def read_users_me(current_user: User = Depends(get_current_user)):
     return {"username": current_user.username}
+
+@router.post("/refresh")
+def refresh_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+    token = credentials.credentials
+    username = verify_token(token)
+    new_token = create_access_token(data={"sub": username}, expires_delta=timedelta(minutes=30))
+    return {"access_token": new_token, "token_type": "bearer"}

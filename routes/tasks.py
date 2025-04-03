@@ -23,7 +23,7 @@ def get_db():
 def create_task(task: TaskCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
     print("User:", user)  # Ha nincs token, akkor ez 403-at dob
     new_task = Task(title=task.title, description=task.description, completed=task.completed,
-                     due_date=task.due_date, priority=task.priority, owner_id=user.id)
+                     due_date=task.due_date, priority=task.priority, tags=task.tags, pinned=task.pinned, owner_id=user.id)
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
@@ -31,7 +31,10 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db), user=Depends(ge
 
 @router.get("/", response_model=List[TaskResponse])
 def get_tasks(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    return db.query(Task).filter(Task.owner_id == user.id).all()
+    return db.query(Task)\
+        .filter(Task.owner_id == user.id)\
+        .order_by(Task.pinned.desc(), Task.priority.desc(), Task.due_date.asc())\
+        .all()
 
 @router.put("/{task_id}", response_model=TaskResponse)
 def update_task(task_id: int, updated_task: TaskUpdate, db: Session = Depends(get_db), user=Depends(get_current_user)):
@@ -44,6 +47,9 @@ def update_task(task_id: int, updated_task: TaskUpdate, db: Session = Depends(ge
     task.completed = updated_task.completed
     task.due_date = updated_task.due_date 
     task.priority = updated_task.priority
+    task.tags = updated_task.tags
+    task.pinned = updated_task.pinned
+
 
     db.commit()
     db.refresh(task)
