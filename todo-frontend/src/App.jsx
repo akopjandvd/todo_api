@@ -65,6 +65,14 @@ export default function TodoApp() {
   const [chartType, setChartType] = useState("bar");
 
   const filters = ["all", "active", "completed", "overdue"];
+  const createFields = { title, description, dueDate, priority, tags };
+  const editFields = {
+    title: editTitle,
+    description: editDescription,
+    dueDate: editDueDate,
+    priority: editPriority,
+    tags: editTags,
+  };
 
   const fetchTasks = async () => {
     const res = await fetch(`${API_BASE}/tasks/`, {
@@ -204,18 +212,14 @@ export default function TodoApp() {
 
   const validateTaskForm = () =>
     validateTaskFieldsAndSetErrors(
-      { title, description, dueDate },
+      createFields,
       setCreateErrors,
       "Please correct the errors before submitting."
     );
 
   const validateEditForm = () =>
     validateTaskFieldsAndSetErrors(
-      {
-        title: editTitle,
-        description: editDescription,
-        dueDate: editDueDate,
-      },
+      editFields,
       setEditErrors,
       "Please correct the errors before saving."
     );
@@ -612,6 +616,7 @@ export default function TodoApp() {
 
               <div className="mb-4">
                 <input
+                  id="search-task"
                   type="text"
                   placeholder="🔍 Search tasks..."
                   value={searchQuery}
@@ -619,30 +624,45 @@ export default function TodoApp() {
                   className="w-full p-2 border rounded bg-white dark:bg-gray-800 text-black dark:text-white dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
-
+              <InputWithError
+                id="task-title"
+                placeholder="Task title"
+                className="h-10 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                    border px-4 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                error={wasCreateSubmitted ? createErrors.title : ""}
+              />
               <div className="flex flex-col  gap-2 mb-4">
-                <div className="flex flex-col md:flex-row gap-2">
-                  <InputWithError
-                    placeholder="Task title"
-                    className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
-                    border px-12 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    error={wasCreateSubmitted ? createErrors.title : ""}
-                  />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <label
+                    className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap"
+                    htmlFor="due-date-input"
+                  >
+                    Due date:
+                  </label>
 
                   <InputWithError
+                    id="due-date-input"
                     type="date"
                     className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
-                    border px-12 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                    border px-4 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
                     error={wasCreateSubmitted ? createErrors.due_date : ""}
                   />
 
+                  <label
+                    className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap"
+                    htmlFor="priority-input"
+                  >
+                    Priority:
+                  </label>
+
                   <select
-                    className="h-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
-                    border px-10 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                    id="priority-input"
+                    className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                    border px-4 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                     onChange={(e) => setPriority(e.target.value)}
                     value={priority}
                   >
@@ -651,21 +671,22 @@ export default function TodoApp() {
                     <option value="high">High</option>
                   </select>
                 </div>
-
                 <InputWithError
+                  id="create-description"
                   as="textarea"
                   rows={3}
                   placeholder="Description"
                   className="focus:outline-none focus:ring-2 focus:ring-blue-400
-                  resize-y w-full border px-3 py-2 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                  resize-y w-full border px-4 py-2 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   error={wasCreateSubmitted ? createErrors.description : ""}
                 />
 
                 <input
+                  id="create-tags"
                   placeholder="Tags (comma separated)"
-                  className="border p-2 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
+                  className="border px-4 py-2 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                 />
@@ -680,18 +701,27 @@ export default function TodoApp() {
 
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <label className="text-sm">Sort by:</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="p-2 border rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                  >
-                    <option value="title">Title (A-Z)</option>
-                    <option value="due_date">Due date</option>
-                    <option value="priority">Priority</option>
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="sort-by"
+                      className="text-sm text-gray-700 dark:text-gray-300"
+                    >
+                      Sort by:
+                    </label>
+                    <select
+                      id="sort-by"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="p-2 border rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                    >
+                      <option value="title">Title (A-Z)</option>
+                      <option value="due_date">Due date</option>
+                      <option value="priority">Priority</option>
+                    </select>
+                  </div>
 
                   <select
+                    id="sort-direction"
                     value={sortDirection}
                     onChange={(e) => setSortDirection(e.target.value)}
                     className="p-2 border rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
@@ -753,38 +783,54 @@ export default function TodoApp() {
                           ? "opacity-0 translate-y-3 animate-fade-in"
                           : ""
                       }
-                      ${
-                        task.pinned
-                          ? "ring-2 ring-indigo-400 bg-indigo-100 dark:bg-indigo-900"
-                          : ""
-                      }
+                      ${task.pinned ? "ring-2 ring-indigo-400" : ""}
                       `}
                     >
-                      <div className="relative w-full">
+                      <div className="relative w-full min-h-[130px]">
                         {editingId === task.id ? (
                           <div className="flex flex-col gap-2 pr-12">
-                            <div className="flex flex-col md:flex-row gap-2">
+                            <div className="flex flex-col md:flex-row gap-2 items-center">
+                              {/* Title input */}
                               <InputWithError
+                                id="edit-title"
                                 value={editTitle}
                                 onChange={(e) => setEditTitle(e.target.value)}
                                 placeholder="Task title"
                                 error={editErrors.title}
-                                className=" border px-10 h-10 text-sm rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                              />
-                              <InputWithError
-                                type="date"
-                                value={editDueDate}
-                                onChange={(e) => setEditDueDate(e.target.value)}
-                                error={editErrors.due_date}
-                                className=" border px-10 h-10 text-sm rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                                className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                                border px-4 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                               />
 
+                              {/* Due date label + input */}
+                              <div className="flex items-center gap-1">
+                                <label
+                                  htmlFor="due-date-edit"
+                                  className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap"
+                                >
+                                  Due date:
+                                </label>
+                                <InputWithError
+                                  id="due-date-edit"
+                                  type="date"
+                                  value={editDueDate}
+                                  onChange={(e) =>
+                                    setEditDueDate(e.target.value)
+                                  }
+                                  error={editErrors.due_date}
+                                  className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                                  border px-4 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                                />
+                              </div>
+
+                              {/* Priority select */}
                               <select
+                                id="edit-priority"
                                 value={editPriority}
                                 onChange={(e) =>
                                   setEditPriority(e.target.value)
                                 }
-                                className=" border px-4 h-10 text-sm rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                                className="h-10 w-full sm:w-auto text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                                border px-4 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                               >
                                 <option value="low">Low</option>
                                 <option value="medium">Medium</option>
@@ -799,6 +845,7 @@ export default function TodoApp() {
                             </div>
 
                             <InputWithError
+                              id="edit-description"
                               as="textarea"
                               rows={3}
                               value={editDescription}
@@ -807,11 +854,13 @@ export default function TodoApp() {
                               }
                               placeholder="Description"
                               error={editErrors.description}
-                              className="resize-y w-full border px-3 py-2 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                              className="focus:outline-none focus:ring-2 focus:ring-blue-400
+                              resize-y w-full border px-4 py-2 rounded bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600"
                             />
                             <input
+                              id="edit-tags"
                               placeholder="Tags (comma separated)"
-                              className="border p-2 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
+                              className="border px-4 py-2 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
                               value={editTags}
                               onChange={(e) => setEditTags(e.target.value)}
                             />
@@ -854,7 +903,7 @@ export default function TodoApp() {
                             {task.due_date && (
                               <p className="text-sm text-gray-500 dark:text-gray-400">
                                 📅 Due date:{" "}
-                                {new Date(task.due_date).toLocaleDateString()}
+                                {format(new Date(task.due_date), "PPP")}
                               </p>
                             )}
                             {task.priority && (
@@ -890,7 +939,7 @@ export default function TodoApp() {
                                 togglePinTask(task.id, task.pinned);
                               }}
                               title={task.pinned ? "Unpin task" : "Pin task"}
-                              className="absolute top-2 right-2 bg-white dark:bg-gray-800 text-black dark:text-white rounded-full p-2 shadow hover:scale-105 transition leading-none w-10 h-10 flex items-center justify-center"
+                              className="absolute right-0 top-0 bg-white dark:bg-gray-800 text-black dark:text-white rounded-full p-2 shadow hover:scale-105 transition w-10 h-10 flex items-center justify-center"
                             >
                               {task.pinned ? "📌" : "📍"}
                             </button>
@@ -937,8 +986,14 @@ export default function TodoApp() {
                 <h2 className="text-xl font-semibold">📊 Statistics</h2>
 
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium">Chart type:</label>
+                  <label
+                    className="text-sm font-medium"
+                    htmlFor="chart-style"
+                  >
+                    Chart type:
+                  </label>
                   <select
+                    id="chart-style"
                     value={chartType}
                     onChange={(e) => setChartType(e.target.value)}
                     className="border px-2 py-1 rounded bg-white dark:bg-gray-800 dark:text-white"
