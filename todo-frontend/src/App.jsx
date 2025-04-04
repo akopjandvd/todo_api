@@ -105,8 +105,21 @@ export default function TodoApp() {
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
-    if (storedToken) setToken(storedToken);
+    if (storedToken) {
+      try {
+        const decoded = jwtDecode(storedToken);
+        const now = Date.now() / 1000;
+        if (decoded.exp > now) {
+          setToken(storedToken);
+        } else {
+          localStorage.removeItem("token"); 
+        }
+      } catch (e) {
+        localStorage.removeItem("token"); 
+      }
+    }
   }, []);
+  
 
   const login = async () => {
     setErrorMessage("");
