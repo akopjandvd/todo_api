@@ -58,6 +58,21 @@ A complete full-stack TODO application with modern technologies, user authentica
 
 ## 🧪 Running Locally
 
+CI keeps the `test` completion check on every main push and PR. A lightweight
+scope job inspects the complete event diff before starting Postgres. Only changes
+confined to `README.md` and `todo-frontend/README.md` use document consistency
+checks; backend/frontend code, tests, dependency/configuration files, workflows,
+unknown paths, renames or unavailable history retain the full backend test job.
+The completion check fails for failed, cancelled or accidentally skipped required
+work. Superseded ordinary runs are cancelled.
+Manual workflow dispatch always runs full validation in a separate,
+non-cancelling group. CI uses read-only repository permissions and checkout
+does not persist credentials.
+
+Scope and completion-gate regression tests run with
+`python3 -B .github/scripts/test_ci_scope.py`. The endpoint ping workflow is
+manual-only; it does not keep the external service awake on a schedule.
+
 ### 1. Backend (FastAPI)
 ```bash
 cd todo_api

@@ -2,8 +2,6 @@
 name: Ping FastAPI
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'  # 10 percenként
   workflow_dispatch:
 
 jobs:

@@ -7,9 +7,38 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'ordinary' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
-  test:
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      run_full: ${{ steps.scope.outputs.run_full }}
+    steps:
+      - name: Clone Codebase
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Classify complete event scope and check prose
+        id: scope
+        run: python3 -B .github/scripts/ci_scope.py
+
+      - name: Test CI scope safety
+        if: steps.scope.outputs.run_full != 'false'
+        run: python3 -B .github/scripts/test_ci_scope.py
+
+  backend-tests:
+    needs: scope
+    if: needs.scope.outputs.run_full != 'false'
     runs-on: ubuntu-latest
 
     services:
@@ -29,10 +58,12 @@ jobs:
 
     steps:
       - name: Clone Codebase
-        uses: actions/checkout@v3
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Install Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.10"
 
@@ -46,3 +77,21 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
         run: |
           pytest backend/tests/
+
+  # Keep the original check name while allocating Postgres only when needed.
+  test:
+    needs: [scope, backend-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone Codebase
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Enforce validation result
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          RUN_FULL: ${{ needs.scope.outputs.run_full }}
+          BACKEND_RESULT: ${{ needs.backend-tests.result }}
+        run: python3 -B .github/scripts/ci_gate.py
