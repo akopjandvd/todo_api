@@ -76,6 +76,20 @@ npm run dev
 
 🔗 Visit: [http://localhost:5173](http://localhost:5173)
 
+### Backend validation
+
+Run the backend tests locally for routine changes. Use the command below from
+the repository root of a dedicated test checkout with `backend/requirements.txt`
+installed.
+
+```bash
+python -B -m pytest -p no:cacheprovider backend/tests/
+```
+
+The tests create and modify the checkout's local `todo.db`, so use a checkout
+with a disposable database. For the full hosted CI job, select **CI Pipeline**
+in GitHub **Actions** and choose **Run workflow**.
+
 ---
 
 ## 🛡️ Brute-force Protection
